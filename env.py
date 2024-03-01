@@ -69,6 +69,48 @@ class Environment:
 
         # Action space
         self.action_space = [0, 1, 2, 3]
+        
+    def plot_traj_densities_with_starts(self, trajectories_lists, starts_lists):
+        fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+        axs = axs.flatten()  # Flatten to make iteration easier
+
+        cmap_ = colors.LinearSegmentedColormap.from_list("white_to_red", ["white", "red"])
+
+        for idx, (trajectories, starts) in enumerate(zip(trajectories_lists, starts_lists)):
+            canvas = np.zeros(shape=self.dim)
+            for traj in trajectories:
+                for sars in traj:
+                    state = sars[0]
+                    i, j = self.idx_to_coords(state)
+                    canvas[i, j] += 1
+
+            max_count = np.max(canvas)
+            if max_count > 0:
+                normalized_canvas = canvas / max_count
+            else:
+                normalized_canvas = canvas
+
+            im = axs[idx].imshow(normalized_canvas, interpolation='none', aspect='equal', cmap=cmap_)
+            axs[idx].set_title(f'Trajectory Group {idx+1}')
+
+            # Overlay starting points
+            max_start = np.max(starts)
+            if max_start > 0:
+                normalized_starts = starts / max_start
+            else:
+                normalized_starts = starts
+
+            for i in range(starts.shape[0]):
+                for j in range(starts.shape[1]):
+                    if starts[i, j] > 0:
+                        # Overlay a blue dot for starting points, intensity based on count
+                        axs[idx].plot(j, i, 'o', color='blue', markersize=normalized_starts[i, j] * 10 + 5, alpha=0.5)
+
+            # Same plotting adjustments as before...
+
+        plt.tight_layout()
+        fig.colorbar(im, ax=axs, orientation='horizontal', fraction=0.02, pad=0.04)
+        plt.show()
 
     def reset(self, set_state=None):
         """Resetting to a given set_state"""
