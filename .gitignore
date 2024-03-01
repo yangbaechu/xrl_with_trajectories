@@ -1,1 +1,5 @@
 /__pycache__
+/xrl
+/.ipynb_checkpoints
+/PPO_Humanoid_tensorboard
+*.zip

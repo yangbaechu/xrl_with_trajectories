@@ -219,100 +219,73 @@ class Environment:
         plt.show()
                     
     
-    def plot_traj(self, traj, path=None):
+    def idx_to_coords(self, state):
+        """
+        Converts a state index into grid coordinates.
 
-#         canvas = np.zeros(shape=self.dim)
+        Args:
+        - state: An integer representing the state index or a tuple already in the form of grid coordinates.
 
-#         # Add start states
-#         for start in self.starts:
-#             canvas[tuple(start)] = +0.25
+        Returns:
+        - A tuple of (i, j) representing the grid coordinates.
+        """
+        # If states are already in coordinate form, return them directly
+        if isinstance(state, tuple):
+            return state
 
-#         # Add end states
-#         for coord, reward in self.terminals.items():
-#             canvas[coord] = reward
+        # Otherwise, convert state index to coordinates
+        i = state // self.dim[1]  # Calculate row index
+        j = state % self.dim[1]   # Calculate column index
+        return (i, j)
 
-#         # Add obstacles
-#         for obstacle in self.obstacles:
-#             canvas[tuple(obstacle)] = -0.25
+    def plot_traj_density(self, trajectories):
+        """
+        Visualizes the density of trajectories passing through each cell with the maximum
+        value represented as red and the minimum as white.
 
-#         # Mark player position
-#         canvas[tuple(self.player_pos)] = 0.5
-        
-        cmap_ = colors.ListedColormap(['black', 'gray', 'lime', 'red']) 
-    # 0 - bg
-    # 1 - wall
-    # 2 - goal
-    # 3 - pit
-    # 4 - agent
-    
+        Args:
+        - trajectories: A list of trajectories, where each trajectory is a list of states.
+        """
+        # Initialize a canvas with zeros
         canvas = np.zeros(shape=self.dim)
 
-        # Add end states
-        for coord, reward in self.terminals.items():
-            if reward > 0:
-                canvas[coord] = 2
-            elif reward < 0:
-                canvas[coord] = 3
-        
-        
-        # Add obstacles
-        for obstacle in self.obstacles:
-            canvas[tuple(obstacle)] = 1
-        
-        # Add agent
-#         canvas[tuple(self.player_pos)] = 4
-        
-    
-        action_render = ['<', '^', '>', 'v']
+        # Iterate through trajectories and increment cell counts
+        for traj in trajectories:
+            for sars in traj:
+                state = sars[0]  # Assuming sars = (state, action, reward, next_state)
+                i, j = self.idx_to_coords(state)  # Convert state index to grid coordinates
+                canvas[i, j] += 1
 
+        # Normalize the counts to [0, 1] for color mapping
+        max_count = np.max(canvas)
+        if max_count > 0:
+            normalized_canvas = canvas / max_count
+        else:
+            normalized_canvas = canvas
+
+        # Create a colormap from white (min) to red (max)
+        cmap_ = colors.LinearSegmentedColormap.from_list("white_to_red", ["white", "red"])
         
-        plt.figure(figsize=(2,2))
-        im = plt.imshow(canvas,
-                        interpolation='none', aspect='equal', cmap=cmap_)
+        # Plotting
+        plt.figure(figsize=(5, 5))
+        im = plt.imshow(normalized_canvas, interpolation='none', aspect='equal', cmap=cmap_)
 
-        ax = plt.gca();
+        ax = plt.gca()
 
-        # Major ticks
+        # Major ticks and labels
         ax.set_xticks(np.arange(0, self.dim[0], 1))
         ax.set_yticks(np.arange(0, self.dim[1], 1))
-
-        # Labels for major ticks
         ax.set_xticklabels(np.arange(1, self.dim[0] + 1, 1))
         ax.set_yticklabels(np.arange(1, self.dim[1] + 1, 1))
 
-        # Minor ticks
+        # Minor ticks for grid lines
         ax.set_xticks(np.arange(-.5, self.dim[0], 1), minor=True)
         ax.set_yticks(np.arange(-.5, self.dim[1], 1), minor=True)
-        
-        
-#         plt.figure(figsize=(2,2))
-#         fig, ax = plt.subplots()
-#         im = ax.imshow(canvas)
 
-        text = []
-        for i in range(self.dim[0]):
-            text_ = []
-            for j in range(self.dim[1]):
-                text_.append('')
-            text.append(text_)
-
-        for idx, sars_ in enumerate(traj):
-            i, j = idx_to_coords(sars_[0], grid_dim=self.dim)
-            if text[i][j] != '':
-                text[i][j] = text[i][j] + '\n' + action_render[sars_[1]] + ',' + str(idx)
-            else:
-                text[i][j] = action_render[sars_[1]] + ',' + str(idx)
-
-        for idx, sars_ in enumerate(traj):
-
-            i, j = idx_to_coords(sars_[0], grid_dim=self.dim)
-            ax.text(j, i, text[i][j],
-                    ha="center", va="center", color="w", size='small')
-        
         # Gridlines based on minor ticks
-        ax.grid(which='minor', color='w', linestyle='-', linewidth=1)
-        if path:
-            plt.savefig(path)
+        ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
+
+        plt.colorbar(im)  # Show color scale
         plt.show()
 
     
@@ -444,7 +417,66 @@ class Environment:
                         ha="center", va="center", color="w", size='small')
         plt.show()
 
+    def plot_traj_densities(self, trajectories_lists):
+        """
+        Visualizes the density of trajectories for four lists of trajectories, 
+        plotting each in a subplot in a 2x2 layout. Each plot's maximum value 
+        is represented as red and the minimum as white.
 
+        Args:
+        - trajectories_lists: A list containing four lists of trajectories, 
+          where each trajectory is a list of states.
+        """
+        # Setup the 2x2 subplot layout
+        fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+        axs = axs.flatten()  # Flatten to make iteration easier
+
+        # Create a colormap from white (min) to red (max)
+        cmap_ = colors.LinearSegmentedColormap.from_list("white_to_red", ["white", "red"])
+
+        for idx, trajectories in enumerate(trajectories_lists):
+            # Initialize a canvas with zeros for each list of trajectories
+            canvas = np.zeros(shape=self.dim)
+
+            # Iterate through trajectories and increment cell counts
+            for traj in trajectories:
+                for sars in traj:
+                    state = sars[0]  # Assuming sars = (state, action, reward, next_state)
+                    i, j = self.idx_to_coords(state)  # Convert state index to grid coordinates
+                    canvas[i, j] += 1
+
+            # Normalize the counts to [0, 1] for color mapping
+            max_count = np.max(canvas)
+            if max_count > 0:
+                normalized_canvas = canvas / max_count
+            else:
+                normalized_canvas = canvas
+
+            # Plotting each subplot
+            im = axs[idx].imshow(normalized_canvas, interpolation='none', aspect='equal', cmap=cmap_)
+            axs[idx].set_title(f'Trajectory Group {idx+1}')
+
+            # Major ticks and labels
+            axs[idx].set_xticks(np.arange(0, self.dim[0], 1))
+            axs[idx].set_yticks(np.arange(0, self.dim[1], 1))
+            axs[idx].set_xticklabels(np.arange(1, self.dim[0] + 1, 1))
+            axs[idx].set_yticklabels(np.arange(1, self.dim[1] + 1, 1))
+
+            # Minor ticks for grid lines
+            axs[idx].set_xticks(np.arange(-.5, self.dim[0], 1), minor=True)
+            axs[idx].set_yticks(np.arange(-.5, self.dim[1], 1), minor=True)
+
+            # Gridlines based on minor ticks
+            axs[idx].grid(which='minor', color='w', linestyle='-', linewidth=2)
+
+        # Adjust layout
+        plt.tight_layout()
+        # Adding a colorbar
+        fig.colorbar(im, ax=axs, orientation='horizontal', fraction=0.02, pad=0.04)
+
+        plt.show()
+
+    
 # Implementation of agent
 class Agent:
     """
