@@ -600,7 +600,6 @@ class Agent:
             s_, r, done, _ = env.step(a)
             # Record the state and action
             traj.append((s, a, r, coords_to_idx(row=s_[0], col=s_[1], grid_dim=env.dim)))
-
             s = s_
             s = coords_to_idx(row=s[0], col=s[1], grid_dim=env.dim)
             traj_len += 1
